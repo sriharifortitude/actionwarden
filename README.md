@@ -119,6 +119,7 @@ That action is designed to be used by branch name, and pinning it to a commit
 means setting its `toolchain:` input instead. There were no injection
 findings and no workflow without a `permissions:` block. I had not pinned my
 own actions before running this, which is the kind of thing the tool is for.
+I then pinned all 164 references to commit SHAs, and a rescan reports nothing.
 
 **234 workflows from 11 public projects** (cli/cli, prometheus, terraform,
 kind, grafana, next.js, vscode, cargo, flask, django, ruff), checked out on
