@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: vet, staticcheck, race tests, build, the README's example, a scan of this repo's own workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go install honnef.co/go/tools/cmd/staticcheck@latest && staticcheck ./...
+      - run: go test -race -count=1 -cover ./...
+      - run: go build -o bin/actionwarden ./cmd/actionwarden
+      - name: the README's example must match what the binary prints
+        run: |
+          awk '/<!-- demo:start -->/{f=1;next} /<!-- demo:end -->/{f=0} f' README.md | sed '1d;$d' > readme-demo.txt
+          # exit 1 is expected: the fixture has findings at or above the default level
+          ./bin/actionwarden scan --brief testdata/vulnerable > actual-demo.txt || test $? -eq 1
+          diff readme-demo.txt actual-demo.txt
+      - name: this repository's own workflows must pass at the strictest level
+        run: ./bin/actionwarden scan --fail-on low .
+
+  fuzz:
+    name: fuzz the parsers for 30 seconds each
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - run: go test -run '^$' -fuzz FuzzParse -fuzztime 30s ./internal/expr
+      - run: go test -run '^$' -fuzz FuzzParse -fuzztime 30s ./internal/workflow
+
+  secrets:
+    name: credsweep over the full commit history
+    runs-on: ubuntu-latest
+    steps:
+      # A shallow clone would let credsweep report a false all-clear.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - run: go install github.com/sriharifortitude/credsweep/cmd/credsweep@v0.1.1
+      - run: credsweep scan .
