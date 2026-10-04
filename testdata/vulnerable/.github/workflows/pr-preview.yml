@@ -1,0 +1,20 @@
+name: PR preview
+on:
+  pull_request_target:
+
+permissions: write-all
+
+jobs:
+  preview:
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: some-org/deploy-preview@main
+      - run: curl -fsSL https://example.com/install.sh | sudo bash
+      - run: npm ci && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: .

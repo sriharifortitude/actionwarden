@@ -1,0 +1,9 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    uses: some-org/workflows/.github/workflows/publish.yml@v2
+    secrets: inherit

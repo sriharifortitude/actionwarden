@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # The SHA is the commit the v4.2.2 tag pointed at when this was written.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Show the PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: 'echo "Testing: $TITLE"'
+      - name: Only on main
+        if: github.ref == 'refs/heads/main'
+        run: echo main
+      - name: Check a label without interpolating it
+        if: ${{ contains(github.event.pull_request.title, 'wip') }}
+        run: echo "work in progress"
+      - run: make test
